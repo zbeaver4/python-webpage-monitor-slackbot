@@ -1,0 +1,4 @@
+powerbot_cnf_test.txt
+*.pyc
+/rtmbot.conf
+env
