@@ -10,6 +10,7 @@ import os
 import sys
 import time
 import logging
+import imp
 from argparse import ArgumentParser
 
 from slackclient import SlackClient
@@ -82,7 +83,8 @@ class Plugin(object):
     def __init__(self, name, plugin_config={}):
         self.name = name
         self.jobs = []
-        self.module = __import__(name)
+        da_name = name.split('\\')[2]
+        self.module = imp.load_source(da_name, name + '.py')
         self.register_jobs()
         self.outputs = []
         if name in config:
