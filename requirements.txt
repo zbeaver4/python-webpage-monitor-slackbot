@@ -3,4 +3,4 @@ python-daemon
 pyyaml
 websocket-client
 slackclient
-urlwatch
+beautifulsoup4
