@@ -4,12 +4,14 @@ import sys
 sys.dont_write_bytecode = True
 
 import glob
+import re
 import yaml
 import json
 import os
 import sys
 import time
 import logging
+import requests
 import imp
 from argparse import ArgumentParser
 
@@ -38,11 +40,18 @@ class RtmBot(object):
                 self.input(reply)
                 if 'text' in reply:
                     
-                    first_word = reply['text'].split()[0].lower()
+                    words = reply['text'].split()
+                    first_word = words[0].lower()
                     #Make a repeater
-                    if first_word in ['monitor', 'monitor_id', 'monitor_text']:
-                        repeat_reply = reply.copy()
-                        start_time = time.time()
+                    if first_word in ['monitor', 'monitor_id', 'monitor_text'] and len(words) > 1:
+                        
+                        try:
+                            webpage_response = requests.get(re.sub('<|>', '', words[1]).split('|')[0]).status_code
+                            if webpage_response == 200:
+                                repeat_reply = reply.copy()
+                                start_time = time.time()
+                        except:
+                            pass
                         
                     #stop the repeating if the user calls it quits
                     elif first_word == 'quit_monitor':

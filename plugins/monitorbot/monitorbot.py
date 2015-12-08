@@ -1,4 +1,5 @@
 import random
+import glob
 from time import sleep
 import requests
 import time
@@ -24,6 +25,95 @@ trig_word = config["TRIGGER_WORD"].lower()
 # url = 'https://news.ycombinator.com/'
 #==============================================================================
 
+###Function to concatenate text for display if it's too long
+def concat_text(text):
+    if len(text) > 200:
+        text = text[:200] + '...'
+    return text
+
+###Function to grab the info from the input URL (id search)###
+def monitor_id(message):
+    
+    #Case 1: check for valid url
+    word_list = message.split()
+    
+    #only handling one web page at a time at this point
+    if len(word_list) != 2:
+        return "Incorrect number of parameters for monitor_id!"
+    
+    #Everything's good so far...try to get the webpage and monitor
+    else:
+        url = re.sub('<|>', '', word_list[0]).split('|')[0]
+        web_id = word_list[1]
+        da_soup = grab_whole_web_page(url)
+        
+        #Successfully grabbed the web page
+        if type(da_soup) is BeautifulSoup:
+            
+            #Check if id exists in webpage
+            html_element = da_soup.find(id = web_id)
+            if html_element is None:
+                return "Could not find id " + web_id + " in webpage " + url
+            
+            else:
+                
+                #Get the content to be monitored
+                id_text = html_element.text
+                
+                #Check to make sure text is available
+                if id_text is None:
+                    return 'Found element but no associated text for ' + url + ' with id ' + web_id
+                
+                #Text is present. Proceed.
+                else:
+                    
+                    id_text = str(id_text)
+                    #Check if the initialization has already started. If so, check for differences and replace if necessary
+                    if check_initialization(url):
+                        
+                        #Check if there's a difference in the web pages
+                        if id_text != undillify(url, str_version = True):
+                            
+                            #Store update text
+                            dill_soup(id_text, url)
+                            
+                            #concatenate text if necessary
+                            id_text = concat_text(id_text)
+                            return url + ' with id ' + web_id + ' has been updated! New text:\n \"' + id_text + '\"'
+                            
+                    #When it hasn't been initialized
+                    else:
+                        
+                        #Store the id's text
+                        dill_soup(id_text, url)
+                        
+                        #concatenate text if necessary
+                        id_text = concat_text(id_text)
+                        return 'Now monitoring url ' + url + ' with id ' + web_id + ' having text\n \"' + id_text + '\"'
+        
+        #When something goes wrong trying to pull down the webpage with beautiful soup
+        else:
+            return 'There was an error accessing ' + url + '. Error: ' + str(da_soup)
+
+#==============================================================================
+# ###unit tests###
+# message1 = 'hello ' + web_id #should throw access error
+# message2 = 'http://news.ycombinator.com hello ' + web_id #should throw too many params error
+# message3 = 'http://news.ycombinator.com asdied' #should throw bad id error
+# message4 = 'http://news.ycombinator.com ' + web_id #should initialize (and then show update when it updates)
+#==============================================================================
+
+###Function to grab the info from the input URL (text search)###
+
+
+###Function to delete cached webpages once done monitoring
+def dill_kill():
+    '''Searches for all files with the extension *.dill
+    in the current directory and deletes them'''
+    for currentFile in glob.glob(os.path.join('webpage_cache', '*')):
+        if currentFile.endswith('dill'):
+            os.remove(currentFile)
+
 ###Function to strip urls
 def strip_url(url):
 	return re.sub('[\W_]+', '', url)
@@ -31,15 +121,19 @@ def strip_url(url):
 ###Function to serialize the bs4 object
 def dill_soup(bs4_obj, url):
 	
-	dill_file = strip_url(url) + '.dill'
+	dill_file = os.path.join('webpage_cache', strip_url(url) + '.dill')
 	with open(dill_file, 'wb') as f:
 		dill.dump(str(bs4_obj), f)
 
 ###Read back in the dill object
-def undillify(url):
-	fn = strip_url(url) + '.dill'
-	string_version = dill.load(open(fn, 'rb'))
-	return BeautifulSoup(string_version)
+def undillify(url, str_version = False):
+    fn = os.path.join('webpage_cache', strip_url(url) + '.dill')
+    string_version = dill.load(open(fn, 'rb'))
+    
+    if str_version:
+        return string_version
+    else:
+        return BeautifulSoup(string_version)
 
 ###Function to grab the info from the input URL (whole page)###
 def grab_whole_web_page(url):
@@ -63,7 +157,7 @@ def grab_whole_web_page(url):
 ###Function to check if monitoring has been initialized (check Pickle)###
 def check_initialization(url):
 	stripped_url = re.sub('[\W_]+', '', url)
-	if os.path.isfile(stripped_url + '.dill'):
+	if os.path.isfile(os.path.join('webpage_cache', stripped_url + '.dill')):
 		return True
 	else:
 		return False
@@ -79,40 +173,34 @@ def process_message(data):
     """
     message = data["text"].lower()
     first_word = message.split()[0].lower()
+    rest_of_message = re.sub(first_word, '', message)
     
     # Look for trigger word, remove it, and look up each word
     if trig_word == first_word:
         
         print message
-        outputs.append([data['channel'], monitor_whole_page(message)])
-    #print outputs
+        outputs.append([data['channel'], monitor_whole_page(rest_of_message)])
     
-        #elif "range" == first_word:
-        #print message
-        #outputs.append([data['channel'], find_range(message)])
-                
+    elif first_word == 'quit_monitor':
+        
+        print message
+        dill_kill()
+        outputs.append([data['channel'], 'Web page monitoring has been stopped.'])
+    
+    elif first_word == 'monitor_id':
+        
+        print message
+        outputs.append([data['channel'], monitor_id(rest_of_message)])
+    
+    elif first_word == 'monitor_text':
+        
+        print message
+        outputs.append([data['channel'], monitor_text(rest_of_message)])
 
-###Unit Tests###
-#==============================================================================
-# data = {'channel': 'blah', 'text': 'monitor https://news.ycombinator.com/'}
-# data2 = {'text': 'poopy poop', 'channel': 'blah'}
-# data3 = {'channel': 'blah', 'text': 'monitor dis crazy'}
-# data4 = {'channel': 'blah', 'text': 'monitor discrazy'}
-# 
-# process_message(data2) #should be empty
-# process_message(data3) #should get "too many..." message
-# outputs = []
-# process_message(data4) #should get error message
-# outputs = []
-# process_message(data) #Should get 'initialization' message
-# outputs = []
-# process_message(data) #should see if there was an update
-#==============================================================================
 def monitor_whole_page(message):
     '''Function that monitors the whole page for updates'''    
     
-    rest_of_message = re.sub(trig_word, '', message)
-    word_list = rest_of_message.split()
+    word_list = message.split()
     
     #only handling one web page at a time at this point
     if len(word_list) >= 2:

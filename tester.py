@@ -55,11 +55,10 @@ with open(strip_url(url) + '.pickle', 'r') as f:
 	poop2 = pickle.load(f)
 
 ###Function to compare the current soup object with the pickled soup object
+
 ###Function to grab the info from the input URL (id search)###
 
-
 ###Function to grab the info from the input URL (text search)###
-
 
 ###Function to save beautifulsoup object to a file to be called later###
 
