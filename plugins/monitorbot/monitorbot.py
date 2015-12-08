@@ -1,4 +1,5 @@
 import random
+from time import sleep
 import requests
 import time
 import re
@@ -10,7 +11,6 @@ import numpy as np
 import os
 from bs4 import BeautifulSoup
 from slackclient import SlackClient
-from yahoo_finance import Share
 
 crontable = []
 outputs = []
@@ -18,12 +18,11 @@ outputs = []
 config = yaml.load(file('rtmbot.conf', 'r'))
 trig_word = config["TRIGGER_WORD"].lower()
 
-###Testing Ground###
-cd 'C:\Users\zacharybeaver\Documents\GitHub\python-WebPageMonitorBot'
-data = {"text": "monitor https://news.ycombinator.com/"}
-url = 'https://news.ycombinator.com/'
-
-check_initializaton(url)
+#==============================================================================
+# ###Testing Ground###
+# data = {"text": "monitor https://news.ycombinator.com/"}
+# url = 'https://news.ycombinator.com/'
+#==============================================================================
 
 ###Function to strip urls
 def strip_url(url):
@@ -64,16 +63,17 @@ def grab_whole_web_page(url):
 ###Function to check if monitoring has been initialized (check Pickle)###
 def check_initialization(url):
 	stripped_url = re.sub('[\W_]+', '', url)
-	if os.path.isfile(stripped_url + '.pickle'):
+	if os.path.isfile(stripped_url + '.dill'):
 		return True
 	else:
 		return False
 
+
+
 def process_message(data):
     """Process a message entered by a user
-    If the message has either the trigger word or "range", 
-    evaluate it and respond accordingly with the stock info 
-    or average price over the range
+    If the message has either the trigger word, 
+    evaluate it and respond by starting to monitor the page
 
     data -- the message's data
     """
@@ -82,18 +82,66 @@ def process_message(data):
     
     # Look for trigger word, remove it, and look up each word
     if trig_word == first_word:
+        
         print message
-        rest_of_message = re.sub(trig_word, '', message)
-        tline=rest_of_message.split()
-        if len(tline) >= 10:
-            outputs.append([data['channel'], "Too many stocks to look up! Try again with fewer than 10."])
-        else:
-            for word in tline:
-                outputs.append([data['channel'], find_quote(word)])
+        outputs.append([data['channel'], monitor_whole_page(message)])
+    #print outputs
+    
+        #elif "range" == first_word:
+        #print message
+        #outputs.append([data['channel'], find_range(message)])
+                
 
-    elif "range" == first_word:
-        print message
-        outputs.append([data['channel'], find_range(message)])
+###Unit Tests###
+#==============================================================================
+# data = {'channel': 'blah', 'text': 'monitor https://news.ycombinator.com/'}
+# data2 = {'text': 'poopy poop', 'channel': 'blah'}
+# data3 = {'channel': 'blah', 'text': 'monitor dis crazy'}
+# data4 = {'channel': 'blah', 'text': 'monitor discrazy'}
+# 
+# process_message(data2) #should be empty
+# process_message(data3) #should get "too many..." message
+# outputs = []
+# process_message(data4) #should get error message
+# outputs = []
+# process_message(data) #Should get 'initialization' message
+# outputs = []
+# process_message(data) #should see if there was an update
+#==============================================================================
+def monitor_whole_page(message):
+    '''Function that monitors the whole page for updates'''    
+    
+    rest_of_message = re.sub(trig_word, '', message)
+    word_list = rest_of_message.split()
+    
+    #only handling one web page at a time at this point
+    if len(word_list) >= 2:
+        return "I can only monitor one website at a time!"
+    
+    #Everything's good so far...try to get the webpage and monitor
+    else:
+        url = re.sub('<|>', '', word_list[0]).split('|')[0]
+        da_soup = grab_whole_web_page(url)
+        
+        #Successfully grabbed the web page
+        if type(da_soup) is BeautifulSoup:
+            
+            #Check if the initialization has already started. If so, check for differences and replace if necessary
+            if check_initialization(url):
+                
+                #Check if there's a difference in the web pages
+                if str(da_soup) != str(undillify(url)):
+                    dill_soup(da_soup, url)
+                    return url + ' has been updated!'
+            
+            #First time monitoring this page
+            else:
+                dill_soup(da_soup, url)
+                return 'Started monitoring ' + url
+        
+        #When something goes wrong trying to pull down the webpage with beautiful soup
+        else:
+            return 'There was an error accessing ' + url + '. Error: ' + str(da_soup)
                 
 def find_quote(word):
     """Given an individual symbol, 

@@ -32,13 +32,34 @@ class RtmBot(object):
     def start(self):
         self.connect()
         self.load_plugins()
+        repeat_reply = None
         while True:
             for reply in self.slack_client.rtm_read():
                 self.input(reply)
+                if 'text' in reply:
+                    
+                    first_word = reply['text'].split()[0].lower()
+                    #Make a repeater
+                    if first_word in ['monitor', 'monitor_id', 'monitor_text']:
+                        repeat_reply = reply.copy()
+                        start_time = time.time()
+                        
+                    #stop the repeating if the user calls it quits
+                    elif first_word == 'quit_monitor':
+                        if repeat_reply is not None:
+                            repeat_reply = None
             self.crons()
             self.output()
             self.autoping()
             time.sleep(.1)
+            
+            #See if it's time to check the website again
+            if repeat_reply is not None:
+                time_diff = time.time() - start_time
+                
+                if time_diff > 30:
+                    self.input(repeat_reply)
+                    start_time = time.time()
     def autoping(self):
         #hardcode the interval to 3 seconds
         now = int(time.time())
