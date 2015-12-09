@@ -1,4 +1,0 @@
-DEBUG: False
-
-SLACK_TOKEN: "insert_token_here"
-TRIGGER_WORD: "monitor"
