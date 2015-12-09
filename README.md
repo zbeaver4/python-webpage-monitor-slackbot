@@ -1,87 +1,69 @@
-python-rtmbot
+python-webpage-monitor-slackbot
 =============
-A Slack bot written in python that connects via the RTM API.
+A slackbot that monitors webpages (or webpage elements) and provides notifications of any updates that occur.
 
-Python-rtmbot is a callback based bot engine. The plugins architecture should be familiar to anyone with knowledge to the [Slack API](https://api.slack.com) and Python. The configuration file format is YAML.
+Description
+=============
+WebMonitorBot is Slack's Python-based [real-time messaging bot](https://github.com/slackhq/python-rtmbot) which uses [BeautifulSoup](http://www.crummy.com/software/BeautifulSoup/bs4/doc/) to monitor changes in web pages.  Currently, it is hardcoded to check for web page updates every 30 seconds and produces a message when updates have occurred.  
 
-Some differences to webhooks:
+Usage
+=============
+There are two ways to monitor web pages using the bot:  
+* **monitor** *url*: the 'monitor' command points the bot at *url* and monitors the entire webpage.  However, many webpages have trivial dynamic content and are thus susceptible to displaying changes that are not meaningful. In such cases, this is not an ideal method to use. I'm working on a future release to try to discount much of this trivial content. This command will indicate when changes to the page have occurred but not display what the changes are.  
+**Example:** monitor news.ycombinator.com  
 
-1. Doesn't require a webserver to receive messages
-2. Can respond to direct messages from users
-3. Logs in as a slack user (or bot)
-4. Bot users must be invited to a channel
+* **monitor_id** *url id*:  the 'monitor_id' command points the bot at a specific, unique HTML ID on the webpage and only monitors changes to the text associated with that ID.  This is the preferred and generally more accurate method of webpage monitoring as it usually excludes unwanted junk.  This command will display the first 200 characters of the text associated with the ID when the web page changes. The 'id' is case-sensitive though the url and trigger word is not.
+**Example:** monitor_id news.ycombinator.com score_10700106  
+  
+In both cases, the trigger word must be the first word in the message, and monitoring will not occur if additional words are added after the final input.
+  
+Other Methods
+------------
+* **quit_monitor**: stops any current webpage monitoring
 
+Example Usage
+------------
+Below is an example of using webmonitorbot to monitor HackerNews, using both **monitor** for the entire page and **monitor_id** to check for score updates on a particular article:  
+![WebPageMonitor Bot in Action](screenshots/hacker_news_example.PNG)
+  
 Dependencies
 ----------
-* websocket-client https://pypi.python.org/pypi/websocket-client/
-* python-slackclient https://github.com/slackhq/python-slackclient
+* [websocket-client](https://pypi.python.org/pypi/websocket-client/)
+* [python-slackclient](https://github.com/slackhq/python-slackclient)
+* [BeautifulSoup4](http://www.crummy.com/software/BeautifulSoup/bs4/doc/)
+* [requests](http://docs.python-requests.org/en/latest/)
+* [dill](http://trac.mystic.cacr.caltech.edu/project/pathos/wiki/dill)
 
 Installation
 -----------
 
-1. Download the python-rtmbot code
+1. Download WebMonitorBot:
 
-        git clone git@github.com:slackhq/python-rtmbot.git
-        cd python-rtmbot
+        git clone https://github.com/zbeaver4/python-webpage-monitor-slackbot.git
+        cd python-webpage-monitor-slackbot
 
-2. Install dependencies ([virtualenv](http://virtualenv.readthedocs.org/en/latest/) is recommended.)
+2. Install dependencies:
 
         pip install -r requirements.txt
 
-3. Configure rtmbot (https://api.slack.com/bot-users)
+3. Configure the bot ([Slack Instructions](https://api.slack.com/bot-users)). Go to Slack integrations, make a new Slackbot, and grab the token. Insert your token in the rtmbot.conf file (shown below), which should be copied to the main folder
         
         cp doc/example-config/rtmbot.conf .
         vi rtmbot.conf
-          SLACK_TOKEN: "xoxb-11111111111-222222222222222"
+          SLACK_TOKEN: "Insert_token_here"
+          TRIGGER_WORD: "monitor"
 
 *Note*: At this point rtmbot is ready to run, however no plugins are configured.
 
-Add Plugins
--------
-
-Plugins can be installed as .py files in the ```plugins/``` directory OR as a .py file in any first level subdirectory. If your plugin uses multiple source files and libraries, it is recommended that you create a directory. You can install as many plugins as you like, and each will handle every event received by the bot indepentently.
-
-To install the example 'repeat' plugin
-
-    mkdir plugins/repeat
-    cp doc/example-plugins/repeat.py plugins/repeat
-
-The repeat plugin will now be loaded by the bot on startup.
-
-    ./rtmbot.py
-
-Create Plugins
---------
-
-####Incoming data
-Plugins are callback based and respond to any event sent via the rtm websocket. To act on an event, create a function definition called process_(api_method) that accepts a single arg. For example, to handle incoming messages:
-
-    def process_message(data):
-        print data
-
-This will print the incoming message json (dict) to the screen where the bot is running.
-
-Plugins having a method defined as ```catch_all(data)``` will receive ALL events from the websocket. This is useful for learning the names of events and debugging.
-
-####Outgoing data
-Plugins can send messages back to any channel, including direct messages. This is done by appending a two item array to the outputs global array. The first item in the array is the channel ID and the second is the message text. Example that writes "hello world" when the plugin is started:
-
-    outputs = []
-    outputs.append(["C12345667", "hello world"])
-        
-*Note*: you should always create the outputs array at the start of your program, i.e. ```outputs = []```
-
-####Timed jobs
-Plugins can also run methods on a schedule. This allows a plugin to poll for updates or perform housekeeping during its lifetime. This is done by appending a two item array to the crontable array. The first item is the interval in seconds and the second item is the method to run. For example, this will print "hello world" every 10 seconds.
-
-    outputs = []
-    crontable = []
-    crontable.append([10, "say_hello"])
-    def say_hello():
-        outputs.append(["C12345667", "hello world"])
-
-####Plugin misc
-The data within a plugin persists for the life of the rtmbot process. If you need persistent data, you should use something like sqlite or the python pickle libraries.
+4. Run the bot! Note, that the program must be running as long as you want to use it.  
+        ```
+        python rtmbot.py
+        ```
 
 ####Todo:
-Some rtm data should be handled upstream, such as channel and user creation. These should create the proper objects on-the-fly.
+* Add ability to filter junk HTML information for 'monitor' command
+* Enable User to specify the frequency of web page checks
+* Allow user to input web page text and have the bot infer the tree structure which contains the text, checking that tree structure in the future for changes.
+* Add capability for monitoring multiple websites at once
+* Make deployable in the clound (Heroku?)
+* Add additional error checking for timed-out websockets
