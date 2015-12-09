@@ -53,8 +53,6 @@ Installation
           SLACK_TOKEN: "Insert_token_here"
           TRIGGER_WORD: "monitor"
 
-*Note*: At this point rtmbot is ready to run, however no plugins are configured.
-
 4. Run the bot! Note, that the program must be running as long as you want to use it.  
         ```
         python rtmbot.py
