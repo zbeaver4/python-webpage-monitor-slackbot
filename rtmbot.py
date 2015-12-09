@@ -12,6 +12,7 @@ import sys
 import time
 import logging
 import requests
+import platform
 import imp
 from argparse import ArgumentParser
 
@@ -113,7 +114,10 @@ class Plugin(object):
     def __init__(self, name, plugin_config={}):
         self.name = name
         self.jobs = []
-        self.module = imp.load_source(name, name + '.py')
+        if platform.system() == 'Windows':
+            self.module = imp.load_source(name, name + '.py')
+        else:
+            self.module = __import__(name)
         self.register_jobs()
         self.outputs = []
         if name in config:
