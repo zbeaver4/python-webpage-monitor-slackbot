@@ -4,3 +4,4 @@ pyyaml
 websocket-client
 slackclient
 beautifulsoup4
+dill
