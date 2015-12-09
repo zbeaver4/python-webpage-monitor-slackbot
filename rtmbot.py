@@ -113,8 +113,7 @@ class Plugin(object):
     def __init__(self, name, plugin_config={}):
         self.name = name
         self.jobs = []
-        da_name = name.split('\\')[2]
-        self.module = imp.load_source(da_name, name + '.py')
+        self.module = imp.load_source(name, name + '.py')
         self.register_jobs()
         self.outputs = []
         if name in config:
